@@ -31,6 +31,20 @@ index manager_index (manager_id),
 constraint fk_manager foreign key(manager_id) references employee(id) on delete set null
 );
 
-select employee.id, employee.first_name, employee.last_name, role_table.title, department.name, role_table.salary from employee left join role_table
+insert into department (name) values ('programming');
+insert into department (name) values ('testing');
+insert into role_table (title, salary, department_id) values ('lead programmer', 1000, 1);
+insert into role_table (title, salary, department_id) values ('programmer', 1000, 1);
+insert into role_table (title, salary, department_id) values ('lead tester', 1000, 2);
+insert into role_table (title, salary, department_id) values ('tester', 1000, 2);
+insert into employee (first_name, last_name, role_id, manager_id) values ('john', 'doe', 1, null);
+insert into employee (first_name, last_name, role_id, manager_id) values ('jane', 'doe', 2, 1);
+insert into employee (first_name, last_name, role_id, manager_id) values ('james', 'doe', 3, null);
+insert into employee (first_name, last_name, role_id, manager_id) values ('henry', 'doe', 4, 3);
+
+select employee.id, employee.first_name, employee.last_name, role_table.title, department.name as department, role_table.salary, concat(manager.first_name,"  ",manager.last_name) as manager
+from employee left join role_table
 on employee.role_id = role_table.id left join department
-on role_table.department_id = department.id where department.name = "manager";
+on role_table.department_id = department.id left join employee as manager on employee.manager_id = manager.id
+where department.name = "testing";
+

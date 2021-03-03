@@ -1,6 +1,9 @@
 const mysql = require("mysql")
 const util = require("util");
-const inquirer = require("inquirer")
+const inquirer = require("inquirer");
+const { async } = require("rxjs");
+const { getegid } = require("process");
+
 
 const connectionObj = {
     host: 'localhost',
@@ -11,8 +14,7 @@ const connectionObj = {
 };
 const connection = mysql.createConnection(connectionObj)
 
-// Converts method to use promises instead of callbacks using node library
-connection.query = util.promisify(connection.query)
+connection.query = util.promisify(connection.query).bind(connection)
 
 connection.connect(error => {
     if (error) throw error;
@@ -123,26 +125,42 @@ const getEmployees = async () => {
     );
 }
 
+
 const getDepartment = async () => {
-    return connection.query('select name from department')
+    return connection.query('select id, name from department')
 }
 
 const createEmployee = async (employee) => {
     return connection.query('insert into employee SET ?', employee);
 }
 
-createRole = async (role) => {
+const createRole = async (role) => {
     return connection.query('insert into role_table SET ?',
         role)
 }
 
-// using async / await to simplify code structure by avoiding nested callbacks
+const employeeDelete = async (employee) => {
+    return connection.query('delete from employee where employee.id = ?', employee)
+}
+
+const deleteDepartment = async (department) => {
+    return connection.query('delete from department where department.id =?', department)
+}
+
+const deleteRole = async (role) => {
+    return connection.query('delete from role_table where role.id =?', role)
+}
+
+const roleUpdate = async (employee, role) => {
+    return connection.query('update employee set role = ? where employee.id = ?', [role, employee])
+}
+
 const addEmployee = async () => {
     const roles = await getRoles()
     const employees = await getEmployees();
 
-    console.log(roles)
-    console.log(employees)
+    // console.log(roles)
+    // console.log(employees)
 
     const employee = await inquirer.prompt([
         {
@@ -155,7 +173,7 @@ const addEmployee = async () => {
         }
     ]);
 
-    console.log(employee)
+    // console.log(employee)
 
     const roleChoices = roles.map(({ id, title }) => ({
         name: title,
@@ -171,7 +189,7 @@ const addEmployee = async () => {
 
     employee.role_id = role.roleId
 
-    console.log(employee)
+    // console.log(employee)
 
     const managerChoices = employees
         .filter(employee => employee.manager === null)
@@ -180,7 +198,7 @@ const addEmployee = async () => {
             value: manager.id
         }))
 
-    console.log(managerChoices)
+    // console.log(managerChoices)
 
     const manager = await inquirer.prompt({
         type: "list",
@@ -248,4 +266,179 @@ const addRole = async () => {
     role.department_id = department.id;
     await createRole(role);
     runProgram();
+}
+
+const departmentView = async () => {
+    const departments = await getDepartment();
+    const departmentChoices = departments.map(({ id, name }) => (
+        {
+            name: name,
+            value: id
+        }
+    ));
+
+    // console.log(departmentChoices)
+
+    const { departmentId } = await inquirer.prompt({
+        type: "list",
+        name: "departmentId",
+        message: "What department would you like to add this role to?",
+        choices: departmentChoices
+    });
+
+
+
+    const choice = await connection.query(
+        'select employee.id, employee.first_name, employee.last_name, role_table.title, department.name as department, role_table.salary, concat(manager.first_name," ",manager.last_name) as manager from employee left join role_table on employee.role_id = role_table.id left join department on role_table.department_id = department.id left join employee as manager on employee.manager_id = manager.id where department.id = ?', departmentId
+    );
+    console.table(choice)
+    runProgram()
+}
+
+const managerView = async () => {
+    const employees = await getEmployees();
+    const managerChoices = employees
+        .filter(employee => employee.manager === null)
+        .map(manager => ({
+            name: `${manager.first_name} ${manager.last_name}`,
+            value: manager.id
+        }))
+
+    // console.log(employees)
+    // console.log(managerChoices)
+
+    const { managerId } = await inquirer.prompt({
+        type: "list",
+        name: "managerId",
+        message: "Employee's manager?",
+        choices: managerChoices
+    });
+
+    const choice = await connection.query(
+        'select employee.id, employee.first_name, employee.last_name, role_table.title, department.name as department, role_table.salary, concat(manager.first_name," ",manager.last_name) as manager from employee left join role_table on employee.role_id = role_table.id left join department on role_table.department_id = department.id left join employee as manager on employee.manager_id = manager.id where employee.manager_id = ?', managerId
+    );
+    console.table(choice)
+    runProgram()
+
+}
+
+const removeEmployee = async () => {
+    const employees = await getEmployees()
+    const employeeChoices = employees.map(({ id, first_name, last_name }) => (
+        {
+            name: first_name,
+            value: id
+        }
+    ));
+
+    // console.log(departmentChoices)
+
+    const { employeeId } = await inquirer.prompt({
+        type: "list",
+        name: "employeeId",
+        message: "What employee would you like to remove?",
+        choices: employeeChoices
+    });
+
+    employeeDelete(employeeId)
+
+}
+
+const removeDepartment = async () => {
+    const departments = await getDepartment;
+    const departmentChoices = departments.map(({ id, name }) => (
+        {
+            name: name,
+            value: id
+        }
+    ));
+
+    // console.log(departmentChoices)
+
+    const { departmentId } = await inquirer.prompt({
+        type: "list",
+        name: "departmentId",
+        message: "What department would you like to remove?",
+        choices: departmentChoices
+    });
+
+    deleteDepartment(departmentId)
+    runProgram()
+}
+
+const removeRole = async () => {
+    const roles = await getRoles()
+    const roleChoices = roles.map(({ id, title }) => ({
+        name: title,
+        value: id
+    }));
+
+    const { roleId } = await inquirer.prompt({
+        type: "list",
+        name: "roleId",
+        message: "What role would you like to remove?",
+        choices: roleChoices
+    });
+
+    deleteRole(roleId)
+    runProgram()
+}
+
+const updateManager = async () => {
+
+}
+
+const updateRole = async () => {
+    const roles = await getRoles()
+    const roleChoices = roles.map(({ id, title }) => ({
+        name: title,
+        value: id
+    }));
+
+    const employees = await getEmployees()
+    const employeeChoices = employees.map(({ id, first_name, last_name }) => (
+        {
+            name: first_name,
+            value: id
+        }
+    ));
+
+
+    const { employeeId } = await inquirer.prompt({
+        type: "list",
+        name: "employeeId",
+        message: "What employee would you like to update?",
+        choices: employeeChoices
+    });
+
+
+    const { roleId } = await inquirer.prompt({
+        type: "list",
+        name: "roleId",
+        message: "What role would you like to update to?",
+        choices: roleChoices
+    });
+
+
+    roleUpdate(employeeId, roleId)
+}
+
+const viewRoles = async () => {
+    const role = await getRoles();
+    console.table(role);
+    runProgram();
+}
+
+const viewDepartments = async () => {
+    const department = await getDepartment()
+    console.table(department);
+    runProgram();
+}
+
+const viewDepartmentBudget = async () => {
+
+}
+
+const exit = async () => {
+
 }

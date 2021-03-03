@@ -4,22 +4,23 @@ create database employee_db;
 use employee_db;
 
 create table department (
-id int auto_increment not null,
+id int unsigned auto_increment not null,
 name varchar(30),
 primary key (id)
 );
 
 create table role_table ( 
-id int auto_increment not null,
+id int unsigned auto_increment not null,
 title varchar(30),
 salary decimal(10, 2),
 department_id int,
 primary key(id),
+index department_index (department_id),
 constraint fk_department foreign key(department_id) references department(id) on delete cascade
 );
 
 create table employee (
-id int auto_increment not null,
+id int unsigned auto_increment not null,
 first_name varchar(30),
 last_name varchar(30),
 role_id int,
@@ -45,6 +46,11 @@ insert into employee (first_name, last_name, role_id, manager_id) values ('henry
 select employee.id, employee.first_name, employee.last_name, role_table.title, department.name as department, role_table.salary, concat(manager.first_name,"  ",manager.last_name) as manager
 from employee left join role_table
 on employee.role_id = role_table.id left join department
-on role_table.department_id = department.id left join employee as manager on employee.manager_id = manager.id
-where department.name = "testing";
+on role_table.department_id = department.id left join employee as manager on employee.manager_id = manager.id;
 
+
+-- select employee.id, employee.first_name, employee.last_name, role_table.title, department.name as department, role_table.salary, concat(manager.first_name,"  ",manager.last_name) as manager
+-- from employee left join role_table
+-- on employee.role_id = role_table.id left join department
+-- on role_table.department_id = department.id left join employee as manager on employee.manager_id = manager.id
+-- where manager = "james doe";

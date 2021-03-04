@@ -3,7 +3,9 @@ const util = require("util");
 const inquirer = require("inquirer");
 const { async } = require("rxjs");
 const { getegid } = require("process");
-
+const logo = require('asciiart-logo');
+const config = require('./package.json');
+console.log(logo(config).render());
 
 const connectionObj = {
     host: 'localhost',
@@ -152,7 +154,15 @@ const deleteRole = async (role) => {
 }
 
 const roleUpdate = async (employee, role) => {
-    return connection.query('update employee set role = ? where employee.id = ?', [role, employee])
+    return connection.query('update employee set role_id = ? where employee.id = ?', [role, employee])
+}
+
+const managerUpdate = async (employee, manager) => {
+    return connection.query('update employee set manager_id = ? where employee.id = ?', [manager, employee])
+}
+
+const viewDepartmentByBudget = async () => {
+    return connection.query('select department.id, department.name, sum(role_table.salary) as Budget from department left join role_table on role_table.department_id = department.id left join employee on employee.role_id = role_table.id group by department.id, department.name')
 }
 
 const addEmployee = async () => {
@@ -326,7 +336,7 @@ const removeEmployee = async () => {
     const employees = await getEmployees()
     const employeeChoices = employees.map(({ id, first_name, last_name }) => (
         {
-            name: first_name,
+            name: first_name + " " + last_name,
             value: id
         }
     ));
@@ -341,11 +351,11 @@ const removeEmployee = async () => {
     });
 
     employeeDelete(employeeId)
-
+    runProgram()
 }
 
 const removeDepartment = async () => {
-    const departments = await getDepartment;
+    const departments = await getDepartment();
     const departmentChoices = departments.map(({ id, name }) => (
         {
             name: name,
@@ -385,7 +395,38 @@ const removeRole = async () => {
 }
 
 const updateManager = async () => {
+    const employees = await getEmployees()
+    const employeeChoices = employees.map(({ id, first_name, last_name }) => (
+        {
+            name: first_name + " " + last_name,
+            value: id
+        }
+    ));
 
+
+    const { employeeId } = await inquirer.prompt({
+        type: "list",
+        name: "employeeId",
+        message: "What employee would you like to update?",
+        choices: employeeChoices
+    });
+
+    const managerChoices = employees
+        .filter(employee => employee.manager === null)
+        .map(manager => ({
+            name: `${manager.first_name} ${manager.last_name}`,
+            value: manager.id
+        }))
+
+    const { managerId } = await inquirer.prompt({
+        type: "list",
+        name: "managerId",
+        message: "Employee's manager?",
+        choices: managerChoices
+    });
+
+    managerUpdate(employeeId, managerId)
+    runProgram();
 }
 
 const updateRole = async () => {
@@ -398,7 +439,7 @@ const updateRole = async () => {
     const employees = await getEmployees()
     const employeeChoices = employees.map(({ id, first_name, last_name }) => (
         {
-            name: first_name,
+            name: first_name + " " + last_name,
             value: id
         }
     ));
@@ -421,6 +462,7 @@ const updateRole = async () => {
 
 
     roleUpdate(employeeId, roleId)
+    runProgram()
 }
 
 const viewRoles = async () => {
@@ -436,9 +478,17 @@ const viewDepartments = async () => {
 }
 
 const viewDepartmentBudget = async () => {
+    // const employees = await getEmployees()
+
+    // const roles = await getRoles()
+
+    const departments = await viewDepartmentByBudget();
+
+    console.table(departments)
+    runProgram()
 
 }
 
 const exit = async () => {
-
+    await connection.end()
 }

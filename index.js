@@ -150,7 +150,7 @@ const deleteDepartment = async (department) => {
 }
 
 const deleteRole = async (role) => {
-    return connection.query('delete from role_table where role.id =?', role)
+    return connection.query('delete from role_table where role_table.id =?', role)
 }
 
 const roleUpdate = async (employee, role) => {
